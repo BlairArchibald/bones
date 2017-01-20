@@ -11,7 +11,7 @@ packages:
 - apps/tsp
 - location:
     git: git@github.com:BlairArchibald/HdpH.git
-    commit: 16e96d485b37aa7259cb63b2920afd3a76ca8550
+    commit: af386843eab8765af73c172226dd00faa73f1dbb
   subdirs:
   - hdph
   - hdph-closure
