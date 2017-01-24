@@ -54,8 +54,8 @@ data Task a b s = Task
 -- (1) Never slower than a sequential run of the same skeleton
 -- (2) Adding more workers does not slow down the computation
 -- (3) Results should have low variance allowing them to be reproducible
-search :: Bool                            -- ^ Should discrepancy search be used? Else spawn tasks linearly, left to right.
-       -> Bool                            -- ^ Enable PruneLevel Optimisation
+search :: Bool                            -- ^ Enable PruneLevel Optimisation
+       -> Bool                            -- ^ Should discrepancy search be used? Else spawn tasks linearly, left to right.
        -> Int                             -- ^ Depth in the tree to spawn to. 0 implies top level tasks.
        -> BBNode a b s                    -- ^ Initial root search node
        -> Closure (BAndBFunctions g a b s)  -- ^ Higher order B&B functions
