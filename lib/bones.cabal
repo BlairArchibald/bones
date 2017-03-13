@@ -17,6 +17,7 @@ library
   hs-source-dirs:      src/
   exposed-modules:     Bones.Skeletons.BranchAndBound.HdpH.Common
                        Bones.Skeletons.BranchAndBound.HdpH.GlobalRegistry
+                       Bones.Skeletons.BranchAndBound.HdpH.Existence
                        Bones.Skeletons.BranchAndBound.HdpH.Ordered
                        Bones.Skeletons.BranchAndBound.HdpH.Sequential
                        Bones.Skeletons.BranchAndBound.HdpH.Types
