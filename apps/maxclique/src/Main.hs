@@ -44,12 +44,13 @@ import           GraphBitArray
 import           Solvers.SequentialSolver (sequentialMaxClique)
 import           Solvers.SequentialSolverBitSetArray (sequentialBitSetArrayMaxClique)
 import           Solvers.SequentialSolverBBMC (sequentialMaxCliqueBBMC)
-import           Solvers.BonesSolver ({- findSolution, -} randomWSIntSet, randomWSBitArray, safeSkeletonIntSet,
+import           Solvers.BonesSolver (existenceSkeleton, randomWSIntSet, randomWSBitArray, safeSkeletonIntSet,
                                       {- safeSkeletonIntSetDynamic, -} safeSkeletonBitSetArray)
 import qualified Solvers.BonesSolver as BonesSolver (declareStatic)
 
 import qualified Bones.Skeletons.BranchAndBound.HdpH.Unordered as Unordered
 import qualified Bones.Skeletons.BranchAndBound.HdpH.Ordered as Ordered
+import qualified Bones.Skeletons.BranchAndBound.HdpH.Existence as Existence
 import           Bones.Skeletons.BranchAndBound.HdpH.GlobalRegistry
 
 --------------------------------------------------------------------------------
@@ -94,8 +95,7 @@ data Algorithm = Sequential
                | UnorderedBBMC
                | OrderedIntSet
                | OrderedBBMC
-             -- | FindSolution
-             -- | OrderedSkeletonIntSetDynamic
+               | Existence
               deriving (Read, Show)
 
 data Options = Options
@@ -155,7 +155,8 @@ optionParser = Options
                                   ," OrderedIntSet,"
                                   ," OrderedBBMC,"
                                   ," UnorderedIntSet,"
-                                  ," UnorderedBBMC]"]
+                                  ," UnorderedBBMC,"
+                                  , "Existence]"]
 
 optsParser = info (helper <*> optionParser)
              (  fullDesc
@@ -306,7 +307,7 @@ main = do
         else timeIOS $ evaluate =<< runParIO conf (safeSkeletonIntSetDynamic bigG depth' ntasks)
    -}
     OrderedBBMC -> do
-      register (Main.declareStatic <> Ordered.declareStatic)
+      register (Main.declareStatic <> Existence.declareStatic)
 
       -- -- Make sure the graph is available globally
 
@@ -318,14 +319,14 @@ main = do
 
       let depth' = fromMaybe 0 depth
       timeIOS $ evaluate =<< runParIO conf (safeSkeletonBitSetArray n depth' discrepancySearch)
-    {-
-    FindSolution -> do
+
+    Existence-> do
       solSize' <- case solSize of
                      Nothing -> error "You must provide the target size (-s) argument\
                                       \when using the FindSolution algorithm"
                      Just s -> return s
 
-      register (Main.declareStatic <> Unordered.declareStatic)
+      register (Main.declareStatic <> Existence.declareStatic)
 
       g  <- mkGraphArray bigUG
       gC <- mkGraphArray $ complementUG bigUG
@@ -334,8 +335,7 @@ main = do
       addGlobalSearchSpaceToRegistry graph
 
       let depth'  = fromMaybe 0 depth
-      timeIOS $ evaluate =<< runParIO conf (findSolution n depth' solSize')
-    -}
+      timeIOS $ evaluate =<< runParIO conf (existenceSkeleton n depth' solSize')
 
   case res of
     Nothing -> exitSuccess

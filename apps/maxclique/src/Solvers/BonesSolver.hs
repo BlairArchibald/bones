@@ -9,7 +9,7 @@ module Solvers.BonesSolver (
   , safeSkeletonIntSet
   -- , safeSkeletonIntSetDynamic
   , safeSkeletonBitSetArray
-  -- , findSolution
+  , existenceSkeleton
   , declareStatic) where
 
 import           Control.Parallel.HdpH (Closure, Node, Par, StaticDecl,
@@ -41,7 +41,8 @@ import           Clique                (Clique, emptyClique)
 import           System.IO.Unsafe      (unsafePerformIO)
 
 import qualified Bones.Skeletons.BranchAndBound.HdpH.Unordered as Unordered
-import qualified Bones.Skeletons.BranchAndBound.HdpH.Ordered      as Ordered
+import qualified Bones.Skeletons.BranchAndBound.HdpH.Ordered   as Ordered
+import qualified Bones.Skeletons.BranchAndBound.HdpH.Existence as Existence
 import           Bones.Skeletons.BranchAndBound.HdpH.Types ( BAndBFunctions(BAndBFunctions)
                                                            , PruneType(..), ToCFns(..))
 import           Bones.Skeletons.BranchAndBound.HdpH.GlobalRegistry
@@ -182,6 +183,24 @@ safeSkeletonBitSetArray nVertices depth diversify = do
         diversify
         depth
         (([], 0), 0, (nVertices, initSet))
+        $(mkClosure [| funcDictBS |])
+        $(mkClosure [| closureDictBS |])
+
+  return (vs, length vs)
+
+  where setAll = do
+          s <- ArrayVertexSet.new nVertices
+          forM_ [0 .. nVertices - 1] (`ArrayVertexSet.insert` s)
+          return s
+
+existenceSkeleton :: Int -> Int -> Int -> Par Clique
+existenceSkeleton nVertices depth searchBound =  do
+  initSet <- io $ setAll >>= ArrayVertexSet.makeImmutable
+  (vs, _) <- Existence.exists
+        True
+        depth
+        (([], 0), 0, (nVertices, initSet))
+        searchBound
         $(mkClosure [| funcDictBS |])
         $(mkClosure [| closureDictBS |])
 

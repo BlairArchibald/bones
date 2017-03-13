@@ -15,8 +15,6 @@ import           Control.Monad         (when, unless)
 
 import           Data.IORef
 
--- import           Bones.Skeletons.BranchAndBound.HdpH.Common hiding (declareStatic)
-import qualified Bones.Skeletons.BranchAndBound.HdpH.Common as Common
 import           Bones.Skeletons.BranchAndBound.HdpH.Types hiding (declareStatic)
 import qualified Bones.Skeletons.BranchAndBound.HdpH.Types as Types (declareStatic)
 import           Bones.Skeletons.BranchAndBound.HdpH.GlobalRegistry
@@ -32,16 +30,17 @@ exists ::
           Bool                              -- ^ Enable pruneLevel optimisation
        -> Int                               -- ^ Depth in the tree to spawn to. 0 implies top level tasks.
        -> BBNode a b s                      -- ^ Root Node
+       -> b                                 -- ^ Bound to search for
        -> Closure (BAndBFunctions g a b s)  -- ^ Higher order B&B functions
        -> Closure (ToCFns a b s)            -- ^ Explicit toClosure instances
        -> Par a                             -- ^ The solution, if found
-exists pl depth root fs' toC = do
+exists pl depth root searchBound fs' toC = do
   master <- myNode
   nodes  <- allNodes
 
   -- Configuration initial state
-  initLocalRegistries nodes (bound root) toC
-  Common.initSolutionOnMaster root toC
+  initLocalRegistries nodes searchBound toC
+  initSolutionOnMaster (solution root) toC
 
   -- Early solution signal
   found    <- new
@@ -57,7 +56,7 @@ exists pl depth root fs' toC = do
   fork $ checkChildren futures found
 
   get found
-  io $ unClosure . fst <$> readFromRegistry solutionKey
+  io $ unClosure <$> readFromRegistry solutionKey
     where
       createChildren done d m n =
           let n' = toCnode (unClosure toC) n
@@ -66,6 +65,14 @@ exists pl depth root fs' toC = do
       -- If call the child tasks complete then we didn't find the thing we were looking for
       checkChildren :: [IVar (Closure ())] -> IVar (Closure ()) -> Par ()
       checkChildren children found = mapM_ get children >> put found toClosureUnit
+
+initSolutionOnMaster :: a -- ^ Initial, empty, solution
+                     -> Closure (ToCFns a b s) -- ^ Explicit toClosure instances
+                     -> Par () -- ^ Side-effect only
+initSolutionOnMaster sol toC =
+  let toCsol = toCa (unClosure toC)
+      solC   = toCsol sol
+  in io $ addToRegistry solutionKey solC
 
 branchAndBoundChild ::
     (
@@ -154,14 +161,14 @@ expandSequential pl parent done n' space fs fsl toC = expand n'
 
         lbnd <- pruningHeuristic fsl space node
         case compareB fsl lbnd gbnd of
-          GT -> do
+          LT -> unless pl $ go ns
+          _ -> do
             when (compareB fsl (bound node) gbnd == EQ) $ do
                 let cSol = toCa toC sol
-                    cBnd = toCb toC bndl
                 notifyParentOfSolution parent done cSol
 
             expand node >> go ns
-          _ -> unless pl $ go ns
+
 
 notifyParentOfSolution :: Node
                        -- ^ Master node
@@ -186,7 +193,7 @@ updateParentSolution :: Closure a
                      -- ^ Side-effect only function
 updateParentSolution s = Thunk $ do
   ref     <- io $ getRefFromRegistry solutionKey
-  updated <- io $ atomicWriteIORef ref s
+  io $ atomicWriteIORef ref s
 
   return toClosureUnit
 
@@ -197,6 +204,5 @@ declareStatic = mconcat
     declare $(static 'branchAndBoundChild)
   , declare $(static 'initRegistryBound)
   , declare $(static 'updateParentSolution)
-  , Common.declareStatic
   , Types.declareStatic
   ]
